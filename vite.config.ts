@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
@@ -13,16 +12,15 @@ export default defineConfig(({ mode }) => {
       port: 5173
     },
     define: {
-      // Polyfill process.env.API_KEY to read from window.env (runtime) or fallback to build env (dev)
-      // We use a string for the value so it compiles to code access, not a string literal
-      'process.env.API_KEY': `(window.env?.API_KEY || "${env.API_KEY || ''}")`,
-      
-      // Polyfill other config vars
+      // We do NOT define process.env.API_KEY here because it requires runtime evaluation 
+      // of window.env, which esbuild's define feature does not support.
+      // Instead, we rely on the polyfill in index.html.
+
+      // These are safe static strings from build-time env
       'process.env.VITE_DEFAULT_WEBHOOK_URL': JSON.stringify(env.VITE_DEFAULT_WEBHOOK_URL),
       'process.env.VITE_DEFAULT_STREAM_URL': JSON.stringify(env.VITE_DEFAULT_STREAM_URL),
       
-      // Polyfill the process.env object so destructuring or general access doesn't crash
-      'process.env': {}
+      // We don't define 'process.env': {} here to avoid overwriting our index.html polyfill
     }
   };
 });

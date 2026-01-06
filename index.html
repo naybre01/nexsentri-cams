@@ -4,10 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NexSentri Cams</title>
-    <!-- Runtime Config Placeholder -->
+    <!-- Runtime Config & Process Polyfill -->
     <script>
+      // 1. Runtime environment variables (injected by Docker/sed)
       window.env = {
         API_KEY: "__API_KEY__"
+      };
+
+      // 2. Polyfill Node.js 'process.env' for the browser
+      // This ensures 'process.env.API_KEY' works in the React code.
+      window.process = {
+        env: {
+          API_KEY: window.env.API_KEY,
+          NODE_ENV: 'production'
+        }
       };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
