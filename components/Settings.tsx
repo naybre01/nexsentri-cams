@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { NodeRedConfig } from '../types';
-import { Save, Webhook, Bell } from 'lucide-react';
+import { NodeRedConfig, CameraConfig } from '../types';
+import { Save, Webhook, Bell, Camera, Video, Network } from 'lucide-react';
 
 interface SettingsProps {
-  config: NodeRedConfig;
-  onSave: (config: NodeRedConfig) => void;
+  nodeRedConfig: NodeRedConfig;
+  onSaveNodeRed: (config: NodeRedConfig) => void;
+  cameraConfig: CameraConfig;
+  onSaveCamera: (config: CameraConfig) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
-  const [localConfig, setLocalConfig] = useState<NodeRedConfig>(config);
+const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, onSaveNodeRed, cameraConfig, onSaveCamera }) => {
+  const [localNodeRed, setLocalNodeRed] = useState<NodeRedConfig>(nodeRedConfig);
+  const [localCamera, setLocalCamera] = useState<CameraConfig>(cameraConfig);
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(localConfig);
+    onSaveNodeRed(localNodeRed);
+    onSaveCamera(localCamera);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -22,10 +26,74 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-100">System Configuration</h2>
-        <p className="text-slate-400">Manage Node-RED integration and alert preferences.</p>
+        <p className="text-slate-400">Manage Camera, Node-RED, and alert preferences.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* Camera Config Card */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
+            <div className="flex items-center mb-4">
+                <div className="p-2 bg-indigo-900/30 rounded-lg mr-3">
+                    <Camera className="w-6 h-6 text-indigo-500" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-200">Video Source</h3>
+                    <p className="text-sm text-slate-400">Choose between local USB or Network Stream</p>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex space-x-4 mb-4">
+                    <button
+                        type="button"
+                        onClick={() => setLocalCamera({ ...localCamera, mode: 'local' })}
+                        className={`flex-1 py-3 px-4 rounded-lg border flex items-center justify-center space-x-2 transition-all ${
+                            localCamera.mode === 'local' 
+                            ? 'bg-indigo-600 border-indigo-500 text-white' 
+                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+                        }`}
+                    >
+                        <Video className="w-4 h-4" />
+                        <span>Local USB</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLocalCamera({ ...localCamera, mode: 'stream' })}
+                        className={`flex-1 py-3 px-4 rounded-lg border flex items-center justify-center space-x-2 transition-all ${
+                            localCamera.mode === 'stream' 
+                            ? 'bg-indigo-600 border-indigo-500 text-white' 
+                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+                        }`}
+                    >
+                        <Network className="w-4 h-4" />
+                        <span>Stream (Frigate)</span>
+                    </button>
+                </div>
+
+                {localCamera.mode === 'stream' && (
+                    <div className="animate-fade-in">
+                        <label className="block text-sm font-medium text-slate-400 mb-1">Stream URL (MJPEG)</label>
+                        <input 
+                            type="url"
+                            value={localCamera.streamUrl}
+                            onChange={(e) => setLocalCamera({...localCamera, streamUrl: e.target.value})}
+                            placeholder="http://localhost:1880/stream"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                        />
+                        <p className="text-xs text-slate-500 mt-2">
+                           Point this to your Node-RED HTTP output or Frigate MJPEG endpoint.
+                        </p>
+                    </div>
+                )}
+                 {localCamera.mode === 'local' && (
+                    <div className="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg text-yellow-200 text-xs">
+                        ⚠️ Local USB mode will fail if Frigate is already using the camera device (/dev/video0).
+                    </div>
+                )}
+            </div>
+        </div>
+
         {/* Integration Card */}
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
             <div className="flex items-center mb-4">
@@ -33,7 +101,7 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
                     <Webhook className="w-6 h-6 text-red-500" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-semibold text-slate-200">Node-RED Integration</h3>
+                    <h3 className="text-lg font-semibold text-slate-200">Node-RED Events</h3>
                     <p className="text-sm text-slate-400">Configure webhook for event forwarding</p>
                 </div>
             </div>
@@ -42,9 +110,9 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
                 <label className="flex items-center space-x-3 p-3 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/50 transition">
                     <input 
                         type="checkbox" 
-                        checked={localConfig.enabled}
-                        onChange={(e) => setLocalConfig({...localConfig, enabled: e.target.checked})}
-                        className="w-5 h-5 rounded border-slate-600 text-accent-500 focus:ring-offset-slate-800 focus:ring-accent-500 bg-slate-900" 
+                        checked={localNodeRed.enabled}
+                        onChange={(e) => setLocalNodeRed({...localNodeRed, enabled: e.target.checked})}
+                        className="w-5 h-5 rounded border-slate-600 text-indigo-500 focus:ring-offset-slate-800 focus:ring-indigo-500 bg-slate-900" 
                     />
                     <span className="text-slate-200 font-medium">Enable Webhook Forwarding</span>
                 </label>
@@ -53,61 +121,20 @@ const Settings: React.FC<SettingsProps> = ({ config, onSave }) => {
                     <label className="block text-sm font-medium text-slate-400 mb-1">Webhook URL</label>
                     <input 
                         type="url"
-                        value={localConfig.webhookUrl}
-                        onChange={(e) => setLocalConfig({...localConfig, webhookUrl: e.target.value})}
-                        placeholder="http://localhost:1880/frigate-event"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition"
-                        disabled={!localConfig.enabled}
+                        value={localNodeRed.webhookUrl}
+                        onChange={(e) => setLocalNodeRed({...localNodeRed, webhookUrl: e.target.value})}
+                        placeholder="http://localhost:1880/event"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                        disabled={!localNodeRed.enabled}
                     />
                 </div>
-            </div>
-        </div>
-
-        {/* Notifications Card */}
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
-            <div className="flex items-center mb-4">
-                <div className="p-2 bg-blue-900/30 rounded-lg mr-3">
-                    <Bell className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                    <h3 className="text-lg font-semibold text-slate-200">Alert Triggers</h3>
-                    <p className="text-sm text-slate-400">Select which events trigger Node-RED</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <label className="flex items-center justify-between p-3 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/50 transition">
-                    <span className="text-slate-200">Person Detected</span>
-                    <div className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors ${localConfig.notifyOnPerson ? 'bg-accent-500' : 'bg-slate-600'}`}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${localConfig.notifyOnPerson ? 'translate-x-4' : ''}`}></div>
-                        <input 
-                            type="checkbox" 
-                            className="hidden"
-                            checked={localConfig.notifyOnPerson}
-                            onChange={(e) => setLocalConfig({...localConfig, notifyOnPerson: e.target.checked})}
-                        />
-                    </div>
-                </label>
-
-                <label className="flex items-center justify-between p-3 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/50 transition">
-                    <span className="text-slate-200">Vehicle Detected</span>
-                    <div className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors ${localConfig.notifyOnVehicle ? 'bg-accent-500' : 'bg-slate-600'}`}>
-                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${localConfig.notifyOnVehicle ? 'translate-x-4' : ''}`}></div>
-                        <input 
-                            type="checkbox" 
-                            className="hidden"
-                            checked={localConfig.notifyOnVehicle}
-                            onChange={(e) => setLocalConfig({...localConfig, notifyOnVehicle: e.target.checked})}
-                        />
-                    </div>
-                </label>
             </div>
         </div>
 
         <div className="flex justify-end">
             <button 
                 type="submit"
-                className={`flex items-center px-6 py-3 rounded-lg font-bold text-white transition-all transform active:scale-95 ${isSaved ? 'bg-green-500' : 'bg-accent-600 hover:bg-accent-500'}`}
+                className={`flex items-center px-6 py-3 rounded-lg font-bold text-white transition-all transform active:scale-95 ${isSaved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}
             >
                 <Save className="w-5 h-5 mr-2" />
                 {isSaved ? 'Settings Saved!' : 'Save Changes'}

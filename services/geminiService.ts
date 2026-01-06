@@ -1,13 +1,11 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { FrigateEvent } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-// Initialize securely - in a real app, handle missing keys gracefully in UI
-const ai = new GoogleGenAI({ apiKey });
+// Initialize securely
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeEvent = async (event: FrigateEvent): Promise<string> => {
-  if (!apiKey) return "API Key not configured. Unable to analyze event.";
-
   try {
     const model = "gemini-3-flash-preview";
     const prompt = `
@@ -38,8 +36,6 @@ export const analyzeEvent = async (event: FrigateEvent): Promise<string> => {
 };
 
 export const chatWithSystem = async (message: string, contextStats: string): Promise<string> => {
-    if (!apiKey) return "API Key not configured.";
-    
     try {
         const model = "gemini-3-flash-preview";
         const systemInstruction = `

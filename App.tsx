@@ -5,21 +5,31 @@ import SystemStatsWidget from './components/SystemStatsWidget';
 import EventList from './components/EventList';
 import Settings from './components/Settings';
 import AiAssistant from './components/AiAssistant';
-import { AppView, FrigateEvent, SystemStats, NodeRedConfig } from './types';
+import { AppView, FrigateEvent, SystemStats, NodeRedConfig, CameraConfig } from './types';
 import { Menu, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  // -- CONFIG STATE --
+  const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
+    webhookUrl: import.meta.env.VITE_DEFAULT_WEBHOOK_URL || 'http://localhost:1880/event',
+    enabled: false,
+    notifyOnPerson: true,
+    notifyOnVehicle: true
+  });
+
+  const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
+    mode: 'stream', // Default to stream to avoid hardware lock errors with Frigate
+    streamUrl: import.meta.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:1880/stream'
+  });
+  
   // -- MOCK DATA STATE --
   const [events, setEvents] = useState<FrigateEvent[]>([]);
   const [statsHistory, setStatsHistory] = useState<SystemStats[]>([]);
   const [currentStats, setCurrentStats] = useState<SystemStats>({
     cpuUsage: 0, memoryUsage: 0, temp: 0, storageUsed: 0, storageTotal: 32, timestamp: 0
-  });
-  const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
-    webhookUrl: '', enabled: false, notifyOnPerson: true, notifyOnVehicle: true
   });
 
   // Simulator Effect (CPU/Temp/Events)
@@ -114,7 +124,7 @@ const App: React.FC = () => {
                       Sim Event
                     </button>
                   </div>
-                  <CameraFeed />
+                  <CameraFeed config={cameraConfig} />
                   <SystemStatsWidget statsHistory={statsHistory} currentStats={currentStats} />
                 </div>
 
@@ -148,7 +158,12 @@ const App: React.FC = () => {
 
           {/* View: Settings */}
           {currentView === AppView.SETTINGS && (
-            <Settings config={nodeRedConfig} onSave={setNodeRedConfig} />
+            <Settings 
+              nodeRedConfig={nodeRedConfig} 
+              onSaveNodeRed={setNodeRedConfig} 
+              cameraConfig={cameraConfig}
+              onSaveCamera={setCameraConfig}
+            />
           )}
         </main>
       </div>

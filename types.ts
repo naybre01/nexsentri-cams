@@ -31,9 +31,40 @@ export interface NodeRedConfig {
   notifyOnVehicle: boolean;
 }
 
+export interface CameraConfig {
+  mode: 'local' | 'stream';
+  streamUrl: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+}
+
+declare global {
+  interface Window {
+    env: {
+      API_KEY: string;
+    }
+  }
+
+  interface ImportMetaEnv {
+    readonly VITE_API_KEY: string;
+    readonly VITE_DEFAULT_WEBHOOK_URL: string;
+    readonly VITE_DEFAULT_STREAM_URL: string;
+    readonly [key: string]: string | boolean | undefined;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
+  var process: {
+    env: {
+      API_KEY: string;
+      [key: string]: string | undefined;
+    }
+  };
 }
