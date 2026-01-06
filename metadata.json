@@ -1,0 +1,8 @@
+{
+  "name": "NexSentri Cams",
+  "description": "Advanced Dashcam Dashboard for Raspberry Pi 4 with Frigate AI and Node-RED integration.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

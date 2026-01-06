@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  nexsentri-cams:
+    build: .
+    container_name: nexsentri_dashboard
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - API_KEY=${API_KEY}
+    devices:
+      # Pass camera device to container if you intend to run browser inside container (uncommon)
+      # or if you expand this to include backend processing later.
+      - "/dev/video0:/dev/video0"
+    privileged: true # Often needed for hardware access on Pi
+
+  # Example Frigate service placeholder (uncomment and configure if setting up full stack)
+  # frigate:
+  #   image: ghcr.io/blakeblackshear/frigate:stable
+  #   privileged: true
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./config.yml:/config/config.yml
+  #     - ./storage:/media/frigate
