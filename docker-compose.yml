@@ -1,6 +1,64 @@
 version: '3.8'
 
 services:
+  # 1. MQTT Broker (Communication bus)
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: nexsentri_mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - nexsentri-net
+
+  # 2. Frigate NVR (AI & Camera Management)
+  frigate:
+    container_name: nexsentri_frigate
+    privileged: true # Required for hardware access
+    restart: unless-stopped
+    image: ghcr.io/blakeblackshear/frigate:stable
+    shm_size: "128mb" # Critical for Frigate on Pi
+    devices:
+      - /dev/video0:/dev/video0 # Camera mapped exclusively here
+      # - /dev/bus/usb:/dev/bus/usb # Uncomment if using Coral USB Accelerator
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./frigate-config.yml:/config/config.yml:ro
+      - ./storage:/media/frigate
+      - type: tmpfs # Uses RAM for cache to save SD card life
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "5000:5000" # Web Interface & MJPEG Streams
+      - "8554:8554" # RTSP feeds
+      - "8555:8555" # WebRTC
+    environment:
+      - FRIGATE_RTSP_PASSWORD=password
+    depends_on:
+      - mqtt
+    networks:
+      - nexsentri-net
+
+  # 3. Node-RED (Automation & Logic)
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nexsentri_nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880"
+    volumes:
+      - ./node_red_data:/data
+    environment:
+      - TZ=UTC
+    networks:
+      - nexsentri-net
+    depends_on:
+      - mqtt
+
+  # 4. NexSentri Dashboard (The Frontend)
   nexsentri-cams:
     build:
       context: .
@@ -9,23 +67,14 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    # Load environment variables from .env.txt as requested
+    env_file:
+      - .env.txt
     environment:
       - API_KEY=${API_KEY}
-    devices:
-      # Maps the Pi's video device to the container. 
-      # While the browser runs on the client side, this is useful if you expand 
-      # to include backend processing (like Frigate) later.
-      - "/dev/video0:/dev/video0"
-    privileged: true
+    networks:
+      - nexsentri-net
 
-  # Optional: Frigate NVR (Uncomment to set up actual backend recording)
-  # frigate:
-  #   image: ghcr.io/blakeblackshear/frigate:stable
-  #   privileged: true
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5000:5000"
-  #   volumes:
-  #     - ./config.yml:/config/config.yml
-  #     - ./storage:/media/frigate
-  #     - /dev/bus/usb:/dev/bus/usb
+networks:
+  nexsentri-net:
+    driver: bridge

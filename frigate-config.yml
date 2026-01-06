@@ -1,0 +1,41 @@
+mqtt:
+  host: mqtt
+  port: 1883
+  # user: user # Optional
+  # password: password # Optional
+
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+cameras:
+  front_cam:
+    ffmpeg:
+      inputs:
+        - path: /dev/video0
+          roles:
+            - detect
+            - record
+    detect:
+      width: 1280
+      height: 720
+      fps: 5 # Kept low for RPi4 CPU usage. Increase if you add a Coral TPU.
+    objects:
+      track:
+        - person
+        - car
+        - bus
+        - motorcycle
+        - bicycle
+    snapshots:
+      enabled: True
+    record:
+      enabled: True
+      retain:
+        days: 1
+        mode: motion
+    # MJPEG stream for the Dashboard
+    live:
+      height: 720
+      quality: 8

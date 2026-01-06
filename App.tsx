@@ -21,8 +21,9 @@ const App: React.FC = () => {
   });
 
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
-    mode: 'stream', // Default to stream to avoid hardware lock errors with Frigate
-    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:1880/stream'
+    mode: 'stream', 
+    // Default to Frigate MJPEG stream for the camera named 'front_cam' defined in frigate-config.yml
+    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:5000/api/front_cam'
   });
   
   // -- MOCK DATA STATE --
