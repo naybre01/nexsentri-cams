@@ -61,10 +61,11 @@ declare global {
     readonly env: ImportMetaEnv;
   }
 
-  var process: {
-    env: {
+  // Fix: Augment NodeJS namespace to add API_KEY to ProcessEnv instead of redeclaring 'process' var
+  namespace NodeJS {
+    interface ProcessEnv {
       API_KEY: string;
       [key: string]: string | undefined;
     }
-  };
+  }
 }

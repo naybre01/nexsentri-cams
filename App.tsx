@@ -14,7 +14,7 @@ const App: React.FC = () => {
   
   // -- CONFIG STATE --
   const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
-    webhookUrl: import.meta.env.VITE_DEFAULT_WEBHOOK_URL || 'http://localhost:1880/event',
+    webhookUrl: process.env.VITE_DEFAULT_WEBHOOK_URL || 'http://localhost:1880/event',
     enabled: false,
     notifyOnPerson: true,
     notifyOnVehicle: true
@@ -22,7 +22,7 @@ const App: React.FC = () => {
 
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
     mode: 'stream', // Default to stream to avoid hardware lock errors with Frigate
-    streamUrl: import.meta.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:1880/stream'
+    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:1880/stream'
   });
   
   // -- MOCK DATA STATE --
