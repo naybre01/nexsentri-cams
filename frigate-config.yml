@@ -1,10 +1,9 @@
 mqtt:
-  # IMPORTANT: This IP must point to the server running the main NexSentri stack.
-  host: 192.168.1.21
+  # Use the service name defined in docker-compose.yml
+  host: mqtt
   port: 1883
-  # Credentials matching the docker-compose.infra.yml setup
-  user: nexsentri_user
-  password: secure_password_123
+  # user: user # Optional
+  # password: password # Optional
 
 detectors:
   cpu1:

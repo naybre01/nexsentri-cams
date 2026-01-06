@@ -24,7 +24,7 @@ Open a terminal on your Pi (or SSH in) and run the following commands to update 
 sudo apt update && sudo apt upgrade -y
 ```
 
-### 2. Install Docker & Docker Compose
+### 2. Install Docker
 The easiest way to install Docker on a Pi:
 ```bash
 curl -fsSL https://get.docker.com -o get-docker.sh
@@ -92,10 +92,10 @@ Save and exit (`Ctrl+X`, `Y`, `Enter`).
 
 ## 🏗️ Step 4: Build and Run
 
-Run the container using Docker Compose. 
+Run the container using the Docker Compose plugin (V2):
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 *   `-d`: Detached mode (runs in background).
@@ -132,11 +132,8 @@ If you have a screen connected to the Pi (like a dashboard screen):
 ## ⚙️ Integrations
 
 ### Node-RED
-1.  Install Node-RED on your Pi if not already installed:
-    ```bash
-    bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
-    ```
-2.  Start Node-RED: `node-red-start`.
+1.  The Node-RED container is already included in the `docker-compose.yml`.
+2.  Access it at `http://<PI_IP>:1880`.
 3.  Create a flow with an `HTTP In` node (method: POST, url: `/event`) connected to a `Debug` node.
 4.  In the NexSentri web dashboard, go to **Settings**.
 5.  Enable Node-RED Integration.
@@ -156,6 +153,10 @@ If you are using Frigate -> MQTT -> Node-RED -> App, setup a Node-RED flow to se
 ---
 
 ## 🛠️ Troubleshooting
+
+**"docker-compose: command not found"**
+*   Newer versions of Docker use `docker compose` (with a space) instead of `docker-compose`.
+*   Try running: `docker compose up -d --build`
 
 **"Requested device not found"**
 *   **Cause**: This usually means Frigate (or another process) is already using `/dev/video0`, so the browser cannot access it.
