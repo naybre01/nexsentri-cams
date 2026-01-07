@@ -129,6 +129,30 @@ If you have a screen connected to the Pi (like a dashboard screen):
 
 ---
 
+## 🔄 Handling Updates & Custom Configs
+
+If you try to run `git pull` and get an error saying **"Your local changes... would be overwritten"**, it is because you have customized files like `docker-compose.yml` with your specific Hardware IDs.
+
+### Quick Fix (Stash)
+1.  Save your local changes: `git stash`
+2.  Download updates: `git pull`
+3.  Restore your changes: `git stash pop`
+
+### Best Practice (Override File)
+To avoid this in the future, do not edit `docker-compose.yml` directly. Instead, create a `docker-compose.override.yml` file for your hardware-specific settings:
+
+```yaml
+version: '3.8'
+services:
+  frigate:
+    devices:
+      - /dev/v4l/by-id/YOUR_SPECIFIC_ID_HERE:/dev/video0
+```
+
+Docker will automatically merge this file with the main config, and since `docker-compose.override.yml` is usually ignored by git, you can update safely.
+
+---
+
 ## ⚙️ Integrations
 
 ### Node-RED
