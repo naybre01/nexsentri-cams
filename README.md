@@ -152,7 +152,32 @@ If you are using Frigate -> MQTT -> Node-RED -> App, setup a Node-RED flow to se
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Troubleshooting & Logs
+
+### Checking System Logs
+If something isn't working, the logs are the best place to start.
+
+**1. View All Logs (Real-time)**
+```bash
+docker compose logs -f
+```
+(Press `Ctrl+C` to exit)
+
+**2. View Specific Service Logs**
+*   **Frigate (Camera/AI)**: `docker compose logs -f frigate`
+*   **Dashboard (Web App)**: `docker compose logs -f nexsentri-cams`
+*   **Node-RED (Automation)**: `docker compose logs -f nodered`
+*   **MQTT (Broker)**: `docker compose logs -f mqtt`
+
+**3. Frontend/Browser Errors**
+If the web app loads but behaves strangely (e.g., chat not working):
+1.  Right-click anywhere on the page > **Inspect**.
+2.  Go to the **Console** tab.
+3.  Look for red error messages.
+
+---
+
+### Common Errors
 
 **"docker-compose: command not found"**
 *   Newer versions of Docker use `docker compose` (with a space) instead of `docker-compose`.

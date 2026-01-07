@@ -23,7 +23,8 @@ const App: React.FC = () => {
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
     mode: 'stream', 
     // Default to Frigate MJPEG stream for the camera named 'front_cam' defined in frigate-config.yml
-    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:5000/api/front_cam'
+    // Note: The /mjpeg suffix is required for the video stream
+    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:5000/api/front_cam/mjpeg'
   });
   
   // -- MOCK DATA STATE --
