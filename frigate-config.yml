@@ -13,6 +13,13 @@ detectors:
 cameras:
   front_cam:
     ffmpeg:
+      # These input arguments are optimized for UVC cameras like the JVCU100
+      # that support native MJPEG output. This reduces CPU load on the Pi.
+      input_args:
+        - -input_format
+        - mjpeg
+        - -pix_fmt
+        - yuvj422p
       inputs:
         - path: /dev/video0
           roles:

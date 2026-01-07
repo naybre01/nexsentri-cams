@@ -21,7 +21,8 @@ services:
     image: ghcr.io/blakeblackshear/frigate:stable
     shm_size: "128mb" # Critical for Frigate on Pi
     devices:
-      - /dev/video0:/dev/video0 # Camera mapped exclusively here
+      # BEST PRACTICE: Map by ID for stability. Find your exact path with `ls /dev/v4l/by-id/` and replace the placeholder below.
+      - /dev/v4l/by-id/YOUR_CAMERA_ID_HERE:/dev/video0
       # - /dev/bus/usb:/dev/bus/usb # Uncomment if using Coral USB Accelerator
     volumes:
       - /etc/localtime:/etc/localtime:ro
