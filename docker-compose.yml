@@ -19,7 +19,7 @@ services:
     privileged: true # Required for hardware access
     restart: unless-stopped
     image: ghcr.io/blakeblackshear/frigate:stable
-    shm_size: "128mb" # Critical for Frigate on Pi
+    shm_size: "512mb" # Critical for Frigate on Pi
     devices:
       # Mapped JVCU100 Camera by ID using long syntax because the ID contains colons (timestamp)
       - source: /dev/v4l/by-id/usb-HD_2MP_WEBCAM_j5_WebCam_JVCU100_Oct_24_2023-14:37:28-mj-video-index0

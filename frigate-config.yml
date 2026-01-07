@@ -13,6 +13,8 @@ detectors:
     num_threads: 3
 
 # WebRTC Streaming Configuration
+# Go2RTC connects to the hardware device (/dev/video0)
+# It then serves this stream to Frigate and WebRTC clients
 go2rtc:
   webrtc:
     listen: :8555
@@ -41,11 +43,11 @@ cameras:
         record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v h264_v4l2m2m -b:v 4M -an
 
       inputs:
-        - path: /dev/video0
+        # CRITICAL FIX: Read from Go2RTC stream (localhost) instead of hardware device
+        # This allows Go2RTC to own the hardware, while Frigate consumes the stream for detect/record.
+        - path: rtsp://127.0.0.1:8554/front_cam
           roles:
             - record
-        - path: /dev/video1
-          roles:
             - detect
     
     detect:

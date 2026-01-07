@@ -23,10 +23,10 @@ const App: React.FC = () => {
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>(() => {
     // Smart Default: Use the Nginx proxy path relative to the dashboard.
     // This routes /api/frigate/... -> http://frigate:5000/api/...
-    // This avoids CORS issues and port blocking.
+    // Frigate MJPEG stream is at /api/<camera_name>
     return {
       mode: 'stream',
-      streamUrl: `/api/frigate/front_cam/mjpeg`
+      streamUrl: `/api/frigate/front_cam`
     };
   });
 
