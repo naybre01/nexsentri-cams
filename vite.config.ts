@@ -17,7 +17,15 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: true,
-      port: 5173
+      port: 5173,
+      // Dev Proxy to match Nginx configuration
+      proxy: {
+        '/api/frigate': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/frigate/, '/api')
+        }
+      }
     },
     define: {
       // Safely replace process.env.API_KEY with the correct value for the environment

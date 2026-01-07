@@ -15,6 +15,18 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # REVERSE PROXY: Frigate API & Streams
+    # Routes http://dashboard/api/frigate/... -> http://frigate:5000/api/...
+    location /api/frigate/ {
+        # Use the service name 'frigate' from docker-compose
+        proxy_pass http://frigate:5000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
     # Cache static assets
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
         expires 30d;

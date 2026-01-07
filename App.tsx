@@ -21,27 +21,56 @@ const App: React.FC = () => {
   });
 
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>(() => {
-    // Smart Default: Use the current hostname (e.g., 192.168.x.x) instead of localhost
-    // This ensures remote viewing works out of the box with Frigate.
-    const hostname = window.location.hostname;
+    // Smart Default: Use the Nginx proxy path relative to the dashboard.
+    // This routes /api/frigate/... -> http://frigate:5000/api/...
+    // This avoids CORS issues and port blocking.
     return {
       mode: 'stream',
-      // Default to Frigate's standard MJPEG endpoint on port 5000
-      streamUrl: `http://${hostname}:5000/api/front_cam/mjpeg`
+      streamUrl: `/api/frigate/front_cam/mjpeg`
     };
   });
 
-  // -- MOCK DATA STATE --
+  // -- DATA STATE --
   const [events, setEvents] = useState<FrigateEvent[]>([]);
   const [statsHistory, setStatsHistory] = useState<SystemStats[]>([]);
   const [currentStats, setCurrentStats] = useState<SystemStats>({
     cpuUsage: 0, memoryUsage: 0, temp: 0, storageUsed: 0, storageTotal: 32, timestamp: 0
   });
 
-  // Simulator Effect (CPU/Temp/Events)
+  // Real Data Fetcher for Events
+  const fetchFrigateEvents = async () => {
+    try {
+      // Fetch from the Nginx proxy (which points to Frigate:5000)
+      const response = await fetch('/api/frigate/events?limit=20');
+      if (!response.ok) return; // Fail silently if Frigate is down
+      
+      const data = await response.json();
+      
+      // Map Frigate API response to our App format
+      const realEvents: FrigateEvent[] = data.map((e: any) => ({
+        id: e.id,
+        label: e.label,
+        camera: e.camera,
+        startTime: e.start_time,
+        // Construct thumbnail URL via proxy
+        thumbnail: `/api/frigate/events/${e.id}/thumbnail.jpg`, 
+        hasClip: e.has_clip,
+        score: e.top_score || e.data?.score || 0
+      }));
+
+      setEvents(realEvents);
+    } catch (error) {
+      console.warn("Could not fetch Frigate events (is the proxy running?)", error);
+    }
+  };
+
+  // Main Loop (Stats Sim + Real Event Polling)
   useEffect(() => {
+    // Initial fetch
+    fetchFrigateEvents();
+
     const timer = setInterval(() => {
-      // 1. Sim Stats
+      // 1. Sim Stats (Still simulated as we don't have a backend agent for Pi stats yet)
       const now = Date.now();
       const newStat: SystemStats = {
         cpuUsage: 15 + Math.random() * 20, // 15-35%
@@ -59,27 +88,16 @@ const App: React.FC = () => {
         return next;
       });
 
-      // 2. Sim Random Event (Rarely)
-      if (Math.random() > 0.98) {
-        const type = Math.random() > 0.5 ? 'person' : 'car';
-        const newEvent: FrigateEvent = {
-          id: now.toString(),
-          label: type,
-          camera: 'front_cam',
-          startTime: now / 1000,
-          thumbnail: `https://picsum.photos/seed/${now}/800/600`,
-          hasClip: true,
-          score: 0.7 + Math.random() * 0.25
-        };
-        setEvents(prev => [newEvent, ...prev].slice(0, 50));
-      }
+      // 2. Poll Real Events
+      fetchFrigateEvents();
 
-    }, 2000);
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(timer);
   }, []);
 
   const triggerManualEvent = () => {
+    // Allows testing UI without real events
     const now = Date.now();
     const newEvent: FrigateEvent = {
       id: now.toString(),

@@ -32,9 +32,12 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
   const applyPreset = (type: 'frigate' | 'go2rtc') => {
     const hostname = window.location.hostname;
     if (type === 'frigate') {
-      setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `http://${hostname}:5000/api/front_cam/mjpeg` });
+        // Use relative path via Nginx Proxy to avoid Port/CORS issues
+        setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `/api/frigate/front_cam/mjpeg` });
     } else {
-      setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `http://${hostname}:8555/api/stream.mjpeg?src=front_cam` });
+        // Go2RTC usually sits on its own port, unless proxied. 
+        // We will stick to port 8555 for now as we didn't proxy it in nginx.
+        setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `http://${hostname}:8555/api/stream.mjpeg?src=front_cam` });
     }
   };
 
@@ -95,7 +98,7 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
                                 type="url"
                                 value={localCamera.streamUrl}
                                 onChange={(e) => setLocalCamera({...localCamera, streamUrl: e.target.value})}
-                                placeholder="http://localhost:5000/api/front_cam/mjpeg"
+                                placeholder="/api/frigate/front_cam/mjpeg"
                                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                             />
                         </div>
@@ -107,7 +110,7 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
                              className="flex-1 py-2 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-300 flex items-center justify-center gap-2 transition-colors"
                            >
                              <Server className="w-3 h-3" />
-                             Use Frigate (Port 5000)
+                             Use Frigate Proxy (Port 80)
                            </button>
                            <button 
                              type="button"
@@ -119,7 +122,7 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
                            </button>
                         </div>
                         <p className="text-xs text-slate-500 mt-1">
-                          The Go2RTC stream (Port 8555) uses significantly less CPU on the Pi.
+                          Frigate Proxy uses the same port as this dashboard. Go2RTC requires port 8555 to be open.
                         </p>
                     </div>
                 )}
