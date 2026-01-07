@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ListVideo, Settings, Sparkles, Cctv } from 'lucide-react';
+import { LayoutDashboard, ListVideo, Settings, Sparkles, Camera } from 'lucide-react';
 import { AppView } from '../types';
 
 interface SidebarProps {
@@ -23,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isMobileOp
   return (
     <aside className={`${baseClasses} ${mobileClasses} flex flex-col`}>
       <div className="h-16 flex items-center px-6 border-b border-slate-700 bg-brand-900">
-        <Cctv className="w-8 h-8 text-accent-500 mr-3" />
+        <Camera className="w-8 h-8 text-accent-500 mr-3" />
         <h1 className="text-xl font-bold tracking-wider text-slate-100">
           NEX<span className="text-accent-500">SENTRI</span>
         </h1>
