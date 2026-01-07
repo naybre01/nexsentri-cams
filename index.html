@@ -7,12 +7,17 @@
     <!-- Runtime Config & Process Polyfill -->
     <script>
       // 1. Runtime environment variables (injected by Docker/sed)
+      // This is the source of truth for the API key at runtime.
       window.env = {
         API_KEY: "__API_KEY__"
       };
 
-      // 2. Polyfill Node.js 'process.env' for the browser
-      // This ensures 'process.env.API_KEY' works in the React code.
+      // 2. Simplified Global for Bundler Replacement
+      // We map 'process.env.API_KEY' to 'window.GEMINI_KEY' in vite.config.ts
+      // to avoid complex syntax issues during the build.
+      window.GEMINI_KEY = window.env.API_KEY;
+
+      // 3. Polyfill Node.js 'process.env' for general compatibility
       window.process = {
         env: {
           API_KEY: window.env.API_KEY,

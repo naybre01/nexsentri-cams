@@ -45,6 +45,7 @@ export interface ChatMessage {
 
 declare global {
   interface Window {
+    GEMINI_KEY: string;
     env: {
       API_KEY: string;
     }
@@ -61,7 +62,7 @@ declare global {
     readonly env: ImportMetaEnv;
   }
 
-  // Fix: Augment NodeJS namespace to add API_KEY to ProcessEnv instead of redeclaring 'process' var
+  // Fix: Augment NodeJS namespace to add API_KEY to ProcessEnv
   namespace NodeJS {
     interface ProcessEnv {
       API_KEY: string;
