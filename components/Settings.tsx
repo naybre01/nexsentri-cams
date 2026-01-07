@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NodeRedConfig, CameraConfig } from '../types';
-import { Save, Webhook, Bell, Camera, Video, Network } from 'lucide-react';
+import { Save, Webhook, Camera, Video, Network } from 'lucide-react';
 
 interface SettingsProps {
   nodeRedConfig: NodeRedConfig;
-  onSaveNodeRed: (config: NodeRedConfig) => void;
   cameraConfig: CameraConfig;
+  onSaveNodeRed: (config: NodeRedConfig) => void;
   onSaveCamera: (config: CameraConfig) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, onSaveNodeRed, cameraConfig, onSaveCamera }) => {
+const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSaveNodeRed, onSaveCamera }) => {
   const [localNodeRed, setLocalNodeRed] = useState<NodeRedConfig>(nodeRedConfig);
   const [localCamera, setLocalCamera] = useState<CameraConfig>(cameraConfig);
   const [isSaved, setIsSaved] = useState(false);
+
+  // When the props from App.tsx change, update the local state
+  useEffect(() => {
+    setLocalNodeRed(nodeRedConfig);
+    setLocalCamera(cameraConfig);
+  }, [nodeRedConfig, cameraConfig]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +33,9 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, onSaveNodeRed, camer
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-100">System Configuration</h2>
-        <p className="text-slate-400">Manage Camera, Node-RED, and alert preferences.</p>
+        <p className="text-slate-400">Manage Camera and Node-RED integration settings.</p>
       </div>
-
+      
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Camera Config Card */}
@@ -82,11 +89,11 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, onSaveNodeRed, camer
                             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                         />
                         <p className="text-xs text-slate-500 mt-2">
-                           Point this to your Node-RED HTTP output or Frigate MJPEG endpoint.
+                          Point this to your Node-RED HTTP output or Frigate MJPEG endpoint.
                         </p>
                     </div>
                 )}
-                 {localCamera.mode === 'local' && (
+                {localCamera.mode === 'local' && (
                     <div className="p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg text-yellow-200 text-xs">
                         ⚠️ Local USB mode will fail if Frigate is already using the camera device (/dev/video0).
                     </div>
@@ -131,7 +138,8 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, onSaveNodeRed, camer
             </div>
         </div>
 
-        <div className="flex justify-end">
+        {/* Save Action */}
+        <div className="flex justify-end pt-2">
             <button 
                 type="submit"
                 className={`flex items-center px-6 py-3 rounded-lg font-bold text-white transition-all transform active:scale-95 ${isSaved ? 'bg-green-500' : 'bg-indigo-600 hover:bg-indigo-500'}`}

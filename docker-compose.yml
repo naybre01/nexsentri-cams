@@ -25,7 +25,7 @@ services:
       # - /dev/bus/usb:/dev/bus/usb # Uncomment if using Coral USB Accelerator
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./frigate-config.yml:/config/config.yml:ro
+      - ./frigate-config.yml:/config/config.yml
       - ./storage:/media/frigate
       - type: tmpfs # Uses RAM for cache to save SD card life
         target: /tmp/cache

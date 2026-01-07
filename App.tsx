@@ -12,7 +12,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // -- CONFIG STATE --
+  // -- CONFIG STATE (Reverted) --
   const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
     webhookUrl: process.env.VITE_DEFAULT_WEBHOOK_URL || 'http://localhost:1880/event',
     enabled: false,
@@ -21,12 +21,10 @@ const App: React.FC = () => {
   });
 
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
-    mode: 'stream', 
-    // Default to Frigate MJPEG stream for the camera named 'front_cam' defined in frigate-config.yml
-    // Note: The /mjpeg suffix is required for the video stream
+    mode: 'stream',
     streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:5000/api/front_cam/mjpeg'
   });
-  
+
   // -- MOCK DATA STATE --
   const [events, setEvents] = useState<FrigateEvent[]>([]);
   const [statsHistory, setStatsHistory] = useState<SystemStats[]>([]);

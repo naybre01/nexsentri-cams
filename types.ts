@@ -43,6 +43,16 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+// Fix: Add missing AppStateSnapshot interface for HistoryManager component
+export interface AppStateSnapshot {
+  timestamp: number;
+  note: string;
+  version: number;
+  nodeRedConfig: NodeRedConfig;
+  cameraConfig: CameraConfig;
+}
+
+
 declare global {
   interface Window {
     GEMINI_KEY: string;
