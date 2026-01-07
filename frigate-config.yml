@@ -3,38 +3,55 @@ mqtt:
   host: mqtt
   port: 1883
 
+ffmpeg:
+  # Use Raspberry Pi 4 hardware acceleration preset
+  hwaccel_args: preset-rpi-64-h264
 
 detectors:
   cpu1:
     type: cpu
     num_threads: 3
 
+# WebRTC Streaming Configuration
+go2rtc:
+  webrtc:
+    listen: :8555
+    # IMPORTANT: Update the IP below to your Raspberry Pi's actual LAN IP
+    candidates:
+      - 192.168.1.170:8555 
+      - stun:8555
+  api:
+    trusted_proxies: [172.16.0.0/12, 192.168.0.0/24, 10.0.0.0/8]
+  streams:
+    front_cam:
+      - /dev/video0
+
 cameras:
   front_cam:
     ffmpeg:
-      # These input arguments are optimized for UVC cameras like the JVCU100
-      # that support native MJPEG output. This reduces CPU load on the Pi.
       input_args:
         - -input_format
         - mjpeg
         - -pix_fmt
         - yuvj422p
       
-      # FIX: The camera outputs MJPEG, but Frigate needs H.264 for recording.
-      # By default, Frigate tries to 'copy' the stream, which fails for MJPEG -> MP4.
-      # We must enable the hardware encoder (h264_v4l2m2m) on the Pi 4.
+      # FIX: Transcode MJPEG to H.264 using Pi hardware encoder (h264_v4l2m2m)
+      # This resolves the "Could not find tag for codec rawvideo" error.
       output_args:
         record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v h264_v4l2m2m -b:v 4M -an
 
       inputs:
         - path: /dev/video0
           roles:
-            - detect
             - record
+        - path: /dev/video1
+          roles:
+            - detect
+    
     detect:
       width: 1280
       height: 720
-      fps: 5 # Kept low for RPi4 CPU usage. Increase if you add a Coral TPU.
+      fps: 5
     objects:
       track:
         - person
@@ -42,14 +59,49 @@ cameras:
         - bus
         - motorcycle
         - bicycle
-    snapshots:
-      enabled: True
-    record:
-      enabled: True
-      retain:
-        days: 1
-        mode: motion
+
     # MJPEG stream for the Dashboard
     live:
       height: 720
       quality: 8
+
+record:
+  enabled: true
+  retain:
+    days: 1
+    mode: motion
+
+snapshots:
+  enabled: true
+  clean_copy: true
+  timestamp: true
+  bounding_box: true
+  crop: true
+  height: 720
+  retain:
+    default: 5
+    objects:
+      person: 7
+
+semantic_search:
+  enabled: true
+  model_size: small
+
+detect:
+  enabled: true
+  fps: 5
+  width: 1280
+  height: 720
+
+ui:
+  time_format: 24hour
+
+# Note: Face Recognition and LPR are features of Frigate 0.16+ (beta).
+# If you are on the 'stable' tag (0.14/0.15), these keys might cause startup errors.
+# Uncomment them only if you are using the correct Frigate version.
+# face_recognition:
+#   enabled: true
+#   model_size: small
+
+# lpr:
+#   enabled: true

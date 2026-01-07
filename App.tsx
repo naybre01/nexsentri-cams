@@ -12,17 +12,23 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // -- CONFIG STATE (Reverted) --
+  // -- CONFIG STATE --
   const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
-    webhookUrl: process.env.VITE_DEFAULT_WEBHOOK_URL || 'http://localhost:1880/event',
+    webhookUrl: process.env.VITE_DEFAULT_WEBHOOK_URL || `http://${window.location.hostname}:1880/event`,
     enabled: false,
     notifyOnPerson: true,
     notifyOnVehicle: true
   });
 
-  const [cameraConfig, setCameraConfig] = useState<CameraConfig>({
-    mode: 'stream',
-    streamUrl: process.env.VITE_DEFAULT_STREAM_URL || 'http://localhost:5000/api/front_cam/mjpeg'
+  const [cameraConfig, setCameraConfig] = useState<CameraConfig>(() => {
+    // Smart Default: Use the current hostname (e.g., 192.168.x.x) instead of localhost
+    // This ensures remote viewing works out of the box with Frigate.
+    const hostname = window.location.hostname;
+    return {
+      mode: 'stream',
+      // Default to Frigate's standard MJPEG endpoint on port 5000
+      streamUrl: `http://${hostname}:5000/api/front_cam/mjpeg`
+    };
   });
 
   // -- MOCK DATA STATE --

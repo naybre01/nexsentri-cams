@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NodeRedConfig, CameraConfig } from '../types';
-import { Save, Webhook, Camera, Video, Network } from 'lucide-react';
+import { Save, Webhook, Camera, Video, Network, Zap, Server, Activity } from 'lucide-react';
 
 interface SettingsProps {
   nodeRedConfig: NodeRedConfig;
@@ -27,6 +27,15 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
     onSaveCamera(localCamera);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  const applyPreset = (type: 'frigate' | 'go2rtc') => {
+    const hostname = window.location.hostname;
+    if (type === 'frigate') {
+      setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `http://${hostname}:5000/api/front_cam/mjpeg` });
+    } else {
+      setLocalCamera({ ...localCamera, mode: 'stream', streamUrl: `http://${hostname}:8555/api/stream.mjpeg?src=front_cam` });
+    }
   };
 
   return (
@@ -79,17 +88,38 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
                 </div>
 
                 {localCamera.mode === 'stream' && (
-                    <div className="animate-fade-in">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Stream URL (MJPEG)</label>
-                        <input 
-                            type="url"
-                            value={localCamera.streamUrl}
-                            onChange={(e) => setLocalCamera({...localCamera, streamUrl: e.target.value})}
-                            placeholder="http://localhost:1880/stream"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-                        />
-                        <p className="text-xs text-slate-500 mt-2">
-                          Point this to your Node-RED HTTP output or Frigate MJPEG endpoint.
+                    <div className="animate-fade-in space-y-3">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1">Stream URL (MJPEG)</label>
+                            <input 
+                                type="url"
+                                value={localCamera.streamUrl}
+                                onChange={(e) => setLocalCamera({...localCamera, streamUrl: e.target.value})}
+                                placeholder="http://localhost:5000/api/front_cam/mjpeg"
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                            />
+                        </div>
+                        
+                        <div className="flex gap-2">
+                           <button 
+                             type="button"
+                             onClick={() => applyPreset('frigate')}
+                             className="flex-1 py-2 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-300 flex items-center justify-center gap-2 transition-colors"
+                           >
+                             <Server className="w-3 h-3" />
+                             Use Frigate (Port 5000)
+                           </button>
+                           <button 
+                             type="button"
+                             onClick={() => applyPreset('go2rtc')}
+                             className="flex-1 py-2 px-3 bg-slate-700 hover:bg-slate-600 rounded text-xs text-emerald-400 border border-emerald-900/30 flex items-center justify-center gap-2 transition-colors"
+                           >
+                             <Zap className="w-3 h-3" />
+                             Use Go2RTC (Fast, Port 8555)
+                           </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          The Go2RTC stream (Port 8555) uses significantly less CPU on the Pi.
                         </p>
                     </div>
                 )}
@@ -108,32 +138,64 @@ const Settings: React.FC<SettingsProps> = ({ nodeRedConfig, cameraConfig, onSave
                     <Webhook className="w-6 h-6 text-red-500" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-semibold text-slate-200">Node-RED Events</h3>
-                    <p className="text-sm text-slate-400">Configure webhook for event forwarding</p>
+                    <h3 className="text-lg font-semibold text-slate-200">Node-RED Integrations</h3>
+                    <p className="text-sm text-slate-400">Configure event forwarding and MQTT feeds</p>
                 </div>
             </div>
             
-            <div className="space-y-4">
-                <label className="flex items-center space-x-3 p-3 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/50 transition">
-                    <input 
-                        type="checkbox" 
-                        checked={localNodeRed.enabled}
-                        onChange={(e) => setLocalNodeRed({...localNodeRed, enabled: e.target.checked})}
-                        className="w-5 h-5 rounded border-slate-600 text-indigo-500 focus:ring-offset-slate-800 focus:ring-indigo-500 bg-slate-900" 
-                    />
-                    <span className="text-slate-200 font-medium">Enable Webhook Forwarding</span>
-                </label>
+            <div className="space-y-6">
+                
+                {/* MQTT Helper Info */}
+                <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                    <div className="flex items-center text-emerald-400 mb-2">
+                        <Activity className="w-4 h-4 mr-2" />
+                        <span className="text-sm font-bold uppercase tracking-wider">MQTT Event Topics</span>
+                    </div>
+                    <p className="text-sm text-slate-400 mb-2">
+                        Use an <strong>MQTT In</strong> node in Node-RED to listen for events.
+                    </p>
+                    
+                    <div className="space-y-3">
+                        <div>
+                            <span className="text-xs text-slate-500 block mb-1">Detection Metadata (JSON):</span>
+                            <div className="bg-black/40 rounded px-3 py-2 font-mono text-xs text-slate-300 border border-slate-800 select-all cursor-pointer hover:border-slate-600">
+                                frigate/events
+                            </div>
+                        </div>
+                        <div>
+                            <span className="text-xs text-slate-500 block mb-1">Event Snapshot (Image Buffer):</span>
+                            <div className="bg-black/40 rounded px-3 py-2 font-mono text-xs text-slate-300 border border-slate-800 select-all cursor-pointer hover:border-slate-600">
+                                frigate/front_cam/+/snapshot
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Webhook URL</label>
-                    <input 
-                        type="url"
-                        value={localNodeRed.webhookUrl}
-                        onChange={(e) => setLocalNodeRed({...localNodeRed, webhookUrl: e.target.value})}
-                        placeholder="http://localhost:1880/event"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-                        disabled={!localNodeRed.enabled}
-                    />
+                <div className="border-t border-slate-700 pt-4">
+                    <label className="flex items-center space-x-3 p-3 border border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/50 transition mb-4">
+                        <input 
+                            type="checkbox" 
+                            checked={localNodeRed.enabled}
+                            onChange={(e) => setLocalNodeRed({...localNodeRed, enabled: e.target.checked})}
+                            className="w-5 h-5 rounded border-slate-600 text-indigo-500 focus:ring-offset-slate-800 focus:ring-indigo-500 bg-slate-900" 
+                        />
+                        <span className="text-slate-200 font-medium">Enable Event Webhook</span>
+                    </label>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-1">Webhook URL</label>
+                        <input 
+                            type="url"
+                            value={localNodeRed.webhookUrl}
+                            onChange={(e) => setLocalNodeRed({...localNodeRed, webhookUrl: e.target.value})}
+                            placeholder="http://localhost:1880/event"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                            disabled={!localNodeRed.enabled}
+                        />
+                         <p className="text-xs text-slate-500 mt-2">
+                            Frigate will send JSON payloads to this URL when a Person or Vehicle is detected.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

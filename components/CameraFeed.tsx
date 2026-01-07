@@ -98,6 +98,14 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ config }) => {
   const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
   const handleRetry = () => setRetryCount(prev => prev + 1);
 
+  // Construct stream URL with cache buster on retry
+  const getStreamUrl = () => {
+    if (!config.streamUrl) return '';
+    if (retryCount === 0) return config.streamUrl;
+    const separator = config.streamUrl.includes('?') ? '&' : '?';
+    return `${config.streamUrl}${separator}t=${Date.now()}`;
+  };
+
   return (
     <div className={`relative rounded-xl overflow-hidden border border-slate-700 bg-black shadow-2xl transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'w-full aspect-video'}`}>
       
@@ -112,7 +120,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ config }) => {
           </div>
           <p className="text-xs text-slate-300 font-mono mt-1 flex items-center gap-1">
             {config.mode === 'stream' ? <Network className="w-3 h-3"/> : <Camera className="w-3 h-3"/>}
-            {config.mode === 'stream' ? 'Node-RED/MQTT' : 'CAM-01 [JVCU100]'}
+            {config.mode === 'stream' ? 'Frigate / Go2RTC' : 'CAM-01 [JVCU100]'}
           </p>
         </div>
         
@@ -134,7 +142,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ config }) => {
           <p className="text-sm text-slate-400 max-w-md">
             {config.mode === 'local' 
              ? "Since you are using Frigate, the camera is likely locked. Go to Settings and switch to 'Stream Mode'." 
-             : `Ensure Node-RED is serving MJPEG at ${config.streamUrl}`}
+             : `Ensure Frigate is running at ${config.streamUrl}`}
           </p>
           <button 
             onClick={handleRetry}
@@ -149,7 +157,8 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ config }) => {
           {config.mode === 'stream' ? (
              /* MJPEG / Image Stream Mode */
              <img 
-               src={config.streamUrl}
+               key={retryCount} // Force re-render on retry
+               src={getStreamUrl()}
                className="w-full h-full object-contain"
                alt="Live Stream"
                onError={() => setError(`Failed to load stream from ${config.streamUrl}`)}
