@@ -9,7 +9,8 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      # FIX: Use .txt extension for host file to prevent directory creation issues
+      - ./mosquitto.conf.txt:/mosquitto/config/mosquitto.conf
     networks:
       - nexsentri-net
 
@@ -51,11 +52,12 @@ services:
     image: nodered/node-red:latest
     container_name: nexsentri_nodered
     restart: unless-stopped
-    user: root # Run as root to fix EACCES errors on bind-mounted volumes
+    user: root # Run as root to fix EACCES errors
     ports:
       - "1880:1880"
     volumes:
-      - ./node_red_data:/data
+      # FIX: Use named volume for data to prevent permission (EACCES) errors on Pi
+      - node_red_data:/data
     environment:
       - TZ=UTC
     networks:
@@ -83,3 +85,6 @@ services:
 networks:
   nexsentri-net:
     driver: bridge
+
+volumes:
+  node_red_data:

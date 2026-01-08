@@ -1,0 +1,9 @@
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+
+# Listen on port 1883 for all interfaces
+listener 1883
+
+# Allow anonymous access (simplifies setup for local network)
+allow_anonymous true
