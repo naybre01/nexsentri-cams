@@ -51,6 +51,7 @@ services:
     image: nodered/node-red:latest
     container_name: nexsentri_nodered
     restart: unless-stopped
+    user: root # Run as root to fix EACCES errors on bind-mounted volumes
     ports:
       - "1880:1880"
     volumes:
