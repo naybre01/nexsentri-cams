@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { NodeRedConfig, CameraConfig, CloudConfig } from '../types';
-import { Save, Webhook, Camera, Video, Network, Zap, Server, Activity, Cloud, Lock, Globe, Copy, Check } from 'lucide-react';
+import { NodeRedConfig, CameraConfig, CloudConfig, AppStateSnapshot } from '../types';
+import { Save, Webhook, Camera, Video, Network, Zap, Server, Cloud, Lock, Globe, Copy, Check, History, Radio } from 'lucide-react';
+import HistoryManager from './HistoryManager';
 
 interface SettingsProps {
   nodeRedConfig: NodeRedConfig;
@@ -9,17 +10,22 @@ interface SettingsProps {
   onSaveNodeRed: (config: NodeRedConfig) => void;
   onSaveCamera: (config: CameraConfig) => void;
   onSaveCloud: (config: CloudConfig) => void;
+  history: AppStateSnapshot[];
+  onSaveSnapshot: (note: string) => void;
+  onRestoreSnapshot: (snapshot: AppStateSnapshot) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ 
     nodeRedConfig, cameraConfig, cloudConfig,
-    onSaveNodeRed, onSaveCamera, onSaveCloud 
+    onSaveNodeRed, onSaveCamera, onSaveCloud,
+    history, onSaveSnapshot, onRestoreSnapshot
 }) => {
   const [localNodeRed, setLocalNodeRed] = useState<NodeRedConfig>(nodeRedConfig);
   const [localCamera, setLocalCamera] = useState<CameraConfig>(cameraConfig);
   const [localCloud, setLocalCloud] = useState<CloudConfig>(cloudConfig);
   const [isSaved, setIsSaved] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [snapshotNote, setSnapshotNote] = useState('');
 
   // When the props from App.tsx change, update the local state
   useEffect(() => {
@@ -38,6 +44,12 @@ const Settings: React.FC<SettingsProps> = ({
     setTimeout(() => setIsSaved(false), 2000);
   };
 
+  const handleCreateSnapshot = () => {
+    if (!snapshotNote.trim()) return;
+    onSaveSnapshot(snapshotNote);
+    setSnapshotNote('');
+  };
+
   const applyPreset = (type: 'frigate' | 'go2rtc') => {
     const hostname = window.location.hostname;
     if (type === 'frigate') {
@@ -47,8 +59,14 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const generateNodeRedFlow = () => {
-    // Generates a Node-RED flow that listens to local MQTT and pushes to Remote NexSentri API
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopyFeedback(type);
+    setTimeout(() => setCopyFeedback(null), 3000);
+  };
+
+  const generateHttpFlow = () => {
+    // Generates a Node-RED flow for HTTP POST (Existing Logic)
     const flow = [
         {
             "id": "frigate_mqtt_in",
@@ -100,16 +118,11 @@ msg.payload = {
         has_clip: event.has_clip
     }
 };
-
-// Add Auth Headers if needed (Basic Auth using configured creds)
-// NOTE: For higher security, use a separate Login flow to get a Bearer token.
-// The default NexSentri integration assumes Basic or API Key for simplicity here.
 const auth = Buffer.from('${localCloud.username}:${localCloud.password}').toString('base64');
 msg.headers = {
     'Content-Type': 'application/json',
     'x-user-username': '${localCloud.username}'
 };
-
 return msg;`,
             "outputs": 1,
             "noerr": 0,
@@ -179,9 +192,172 @@ return msg;`,
         }
     ];
 
-    navigator.clipboard.writeText(JSON.stringify(flow));
-    setCopyFeedback(true);
-    setTimeout(() => setCopyFeedback(false), 3000);
+    copyToClipboard(JSON.stringify(flow), 'http');
+  };
+
+  const generateMqttFlow = () => {
+    // Parse the WSS URL to extract hostname, port, and path for Node-RED Config
+    let brokerHost = "portal.nexsentri.co.za";
+    let brokerPath = "/mqtt";
+    let brokerPort = "443";
+    
+    try {
+        const urlObj = new URL(localCloud.mqttUrl);
+        brokerHost = urlObj.hostname;
+        brokerPath = urlObj.pathname;
+        if (urlObj.port) brokerPort = urlObj.port;
+        else if (urlObj.protocol === 'wss:') brokerPort = "443";
+        else if (urlObj.protocol === 'ws:') brokerPort = "80";
+    } catch (e) {
+        // Fallback to defaults if URL invalid
+    }
+
+    const flow = [
+        {
+            "id": "frigate_events_in",
+            "type": "mqtt in",
+            "z": "nexsentri_mqtt_bridge",
+            "name": "Frigate Events",
+            "topic": "frigate/events",
+            "qos": "0",
+            "datatype": "json",
+            "broker": "local_mqtt_broker",
+            "x": 140,
+            "y": 120,
+            "wires": [["bridge_event"]]
+        },
+        {
+            "id": "frigate_snaps_in",
+            "type": "mqtt in",
+            "z": "nexsentri_mqtt_bridge",
+            "name": "Frigate Snapshots",
+            "topic": "frigate/+/latest",
+            "qos": "0",
+            "datatype": "buffer",
+            "broker": "local_mqtt_broker",
+            "x": 150,
+            "y": 200,
+            "wires": [["bridge_snapshot"]]
+        },
+        {
+            "id": "bridge_event",
+            "type": "function",
+            "z": "nexsentri_mqtt_bridge",
+            "name": "Format Event",
+            "func": `// Repackage event for remote topic
+msg.topic = "${localCloud.mqttTopicPrefix}" + "events";
+return msg;`,
+            "outputs": 1,
+            "noerr": 0,
+            "initialize": "",
+            "finalize": "",
+            "libs": [],
+            "x": 380,
+            "y": 120,
+            "wires": [["remote_mqtt_out"]]
+        },
+        {
+            "id": "bridge_snapshot",
+            "type": "function",
+            "z": "nexsentri_mqtt_bridge",
+            "name": "Format Snapshot",
+            "func": `// Extract camera name from topic: frigate/<cam>/latest
+const parts = msg.topic.split('/');
+const camera = parts[1];
+msg.topic = "${localCloud.mqttTopicPrefix}" + "feed/" + camera + "/latest";
+return msg;`,
+            "outputs": 1,
+            "noerr": 0,
+            "initialize": "",
+            "finalize": "",
+            "libs": [],
+            "x": 380,
+            "y": 200,
+            "wires": [["remote_mqtt_out"]]
+        },
+        {
+            "id": "remote_mqtt_out",
+            "type": "mqtt out",
+            "z": "nexsentri_mqtt_bridge",
+            "name": "Remote Feed",
+            "topic": "",
+            "qos": "0",
+            "retain": "false",
+            "respTopic": "",
+            "contentType": "",
+            "userProps": "",
+            "correl": "",
+            "expiry": "",
+            "broker": "remote_wss_broker",
+            "x": 620,
+            "y": 160,
+            "wires": []
+        },
+        {
+            "id": "local_mqtt_broker",
+            "type": "mqtt-broker",
+            "name": "Local MQTT",
+            "broker": "localhost",
+            "port": "1883",
+            "clientid": "",
+            "autoConnect": true,
+            "usetls": false,
+            "protocolVersion": "4",
+            "keepalive": "60",
+            "cleansession": true,
+            "birthTopic": "",
+            "birthQos": "0",
+            "birthPayload": "",
+            "closeTopic": "",
+            "closeQos": "0",
+            "closePayload": "",
+            "willTopic": "",
+            "willQos": "0",
+            "willPayload": ""
+        },
+        {
+            "id": "remote_wss_broker",
+            "type": "mqtt-broker",
+            "name": "NexSentri Cloud WSS",
+            "broker": brokerHost,
+            "port": brokerPort,
+            "tls": "tls_conf_wss",
+            "clientid": `nexsentri_${Math.floor(Math.random() * 1000)}`,
+            "autoConnect": true,
+            "usetls": true,
+            "protocolVersion": "4",
+            "keepalive": "60",
+            "cleansession": true,
+            "path": brokerPath,
+            "birthTopic": "",
+            "birthQos": "0",
+            "birthPayload": "",
+            "closeTopic": "",
+            "closeQos": "0",
+            "closePayload": "",
+            "willTopic": "",
+            "willQos": "0",
+            "willPayload": "",
+            "user": localCloud.username,
+            "password": localCloud.password
+        },
+        {
+            "id": "tls_conf_wss",
+            "type": "tls-config",
+            "name": "WSS TLS",
+            "cert": "",
+            "key": "",
+            "ca": "",
+            "certname": "",
+            "keyname": "",
+            "caname": "",
+            "servername": "",
+            "verifyservercert": true,
+            "alpnprotocol": ""
+        }
+    ];
+
+    copyToClipboard(JSON.stringify(flow), 'mqtt');
   };
 
   return (
@@ -269,7 +445,7 @@ return msg;`,
             </div>
         </div>
 
-        {/* NexSentri Cloud Link Card (NEW) */}
+        {/* NexSentri Cloud Link Card */}
         <div className="bg-slate-800 border border-sky-700/50 rounded-xl p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-3 opacity-10">
                 <Cloud className="w-32 h-32 text-sky-400" />
@@ -282,7 +458,7 @@ return msg;`,
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold text-slate-200">NexSentri Cloud Link</h3>
-                        <p className="text-sm text-slate-400">Securely sync events to the cloud via Cloudflare Tunnel</p>
+                        <p className="text-sm text-slate-400">Securely sync events to the cloud via Cloudflare Tunnel or MQTT.</p>
                     </div>
                 </div>
 
@@ -298,20 +474,9 @@ return msg;`,
                     </label>
 
                     {localCloud.enabled && (
-                        <div className="space-y-3 animate-fade-in">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-400 mb-1">Portal URL</label>
-                                <div className="relative">
-                                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                    <input 
-                                        type="url"
-                                        value={localCloud.baseUrl}
-                                        onChange={(e) => setLocalCloud({...localCloud, baseUrl: e.target.value})}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-slate-200 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
-                                    />
-                                </div>
-                            </div>
-
+                        <div className="space-y-6 animate-fade-in">
+                            
+                            {/* Credentials */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-400 mb-1">Username</label>
@@ -337,27 +502,87 @@ return msg;`,
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-slate-700/50">
-                                <div className="flex items-center justify-between bg-sky-900/20 p-4 rounded-lg border border-sky-800/30">
+                            {/* Section 1: Standard API */}
+                            <div className="p-4 rounded-lg bg-slate-900/30 border border-slate-700/50">
+                                <h4 className="text-slate-300 text-sm font-bold mb-3 flex items-center">
+                                    <Server className="w-4 h-4 mr-2 text-slate-500" />
+                                    Standard Event API (HTTP)
+                                </h4>
+                                <div className="space-y-3">
                                     <div>
-                                        <h4 className="text-sky-300 font-bold text-sm">Node-RED Configuration</h4>
-                                        <p className="text-xs text-sky-400/70 mt-1 max-w-sm">
-                                            Generate a pre-configured Flow to bridge local MQTT events to the NexSentri Cloud API.
-                                        </p>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Portal URL</label>
+                                        <input 
+                                            type="url"
+                                            value={localCloud.baseUrl}
+                                            onChange={(e) => setLocalCloud({...localCloud, baseUrl: e.target.value})}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                                        />
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={generateNodeRedFlow}
-                                        className="flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-sky-900/20"
+                                        onClick={generateHttpFlow}
+                                        className="w-full flex items-center justify-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition-colors"
                                     >
-                                        {copyFeedback ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
-                                        {copyFeedback ? 'Copied!' : 'Copy Flow JSON'}
+                                        {copyFeedback === 'http' ? <Check className="w-3 h-3 mr-2" /> : <Copy className="w-3 h-3 mr-2" />}
+                                        {copyFeedback === 'http' ? 'Copied!' : 'Copy HTTP Event Flow'}
                                     </button>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2 text-center">
-                                    Paste this JSON into Node-RED (Menu &gt; Import) to enable the link.
-                                </p>
                             </div>
+
+                            {/* Section 2: Real-time MQTT */}
+                            <div className="p-4 rounded-lg bg-slate-900/30 border border-slate-700/50">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-slate-300 text-sm font-bold flex items-center">
+                                        <Radio className="w-4 h-4 mr-2 text-slate-500" />
+                                        Real-time Feed (MQTT WSS)
+                                    </h4>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={localCloud.mqttEnabled} 
+                                            onChange={(e) => setLocalCloud({...localCloud, mqttEnabled: e.target.checked})} 
+                                            className="sr-only peer" 
+                                        />
+                                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                                    </label>
+                                </div>
+
+                                {localCloud.mqttEnabled && (
+                                    <div className="space-y-3 animate-fade-in">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">WSS Broker URL</label>
+                                            <input 
+                                                type="url"
+                                                value={localCloud.mqttUrl}
+                                                onChange={(e) => setLocalCloud({...localCloud, mqttUrl: e.target.value})}
+                                                placeholder="wss://portal.nexsentri.co.za/mqtt"
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                                            />
+                                        </div>
+                                         <div>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Topic Prefix</label>
+                                            <input 
+                                                type="text"
+                                                value={localCloud.mqttTopicPrefix}
+                                                onChange={(e) => setLocalCloud({...localCloud, mqttTopicPrefix: e.target.value})}
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={generateMqttFlow}
+                                            className="w-full flex items-center justify-center px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium rounded-lg transition-colors shadow-lg shadow-sky-900/20"
+                                        >
+                                            {copyFeedback === 'mqtt' ? <Check className="w-3 h-3 mr-2" /> : <Copy className="w-3 h-3 mr-2" />}
+                                            {copyFeedback === 'mqtt' ? 'Copied!' : 'Copy MQTT Bridge Flow'}
+                                        </button>
+                                        <p className="text-[10px] text-slate-500 text-center">
+                                            Bridges <code>frigate/events</code> and <code>frigate/+/latest</code> (snapshots) to remote.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     )}
                 </div>
@@ -404,6 +629,40 @@ return msg;`,
                     </div>
                 </div>
             </div>
+        </div>
+        
+        {/* Version History & Backup */}
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
+            <div className="flex items-center mb-4">
+                <div className="p-2 bg-emerald-900/30 rounded-lg mr-3">
+                    <History className="w-6 h-6 text-emerald-500" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-200">Version History & Backups</h3>
+                    <p className="text-sm text-slate-400">Save your current configuration state or restore previous versions.</p>
+                </div>
+            </div>
+            
+            <div className="flex gap-3 mb-6">
+                <input 
+                    type="text"
+                    value={snapshotNote}
+                    onChange={(e) => setSnapshotNote(e.target.value)}
+                    placeholder="Describe this version (e.g., 'Stable Setup V1')"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                />
+                <button
+                    type="button"
+                    onClick={handleCreateSnapshot}
+                    disabled={!snapshotNote.trim()}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white font-medium rounded-lg transition-colors flex items-center"
+                >
+                    <Save className="w-4 h-4 mr-2" />
+                    Snapshot
+                </button>
+            </div>
+
+            <HistoryManager history={history} onRestore={onRestoreSnapshot} />
         </div>
 
         {/* Save Action */}

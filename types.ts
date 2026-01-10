@@ -1,3 +1,4 @@
+
 export interface FrigateEvent {
   id: string;
   label: string;
@@ -41,6 +42,10 @@ export interface CloudConfig {
   baseUrl: string;
   username: string;
   password?: string; // Optional for display security
+  // MQTT WSS Configuration
+  mqttEnabled: boolean;
+  mqttUrl: string;
+  mqttTopicPrefix: string;
 }
 
 export interface ChatMessage {

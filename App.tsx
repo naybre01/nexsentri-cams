@@ -5,7 +5,7 @@ import SystemStatsWidget from './components/SystemStatsWidget';
 import EventList from './components/EventList';
 import Settings from './components/Settings';
 import AiAssistant from './components/AiAssistant';
-import { AppView, FrigateEvent, SystemStats, NodeRedConfig, CameraConfig, CloudConfig } from './types';
+import { AppView, FrigateEvent, SystemStats, NodeRedConfig, CameraConfig, CloudConfig, AppStateSnapshot } from './types';
 import { Menu, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -34,8 +34,26 @@ const App: React.FC = () => {
     enabled: false,
     baseUrl: 'https://portal.nexsentri.co.za',
     username: '',
-    password: ''
+    password: '',
+    mqttEnabled: false,
+    mqttUrl: 'wss://portal.nexsentri.co.za/mqtt',
+    mqttTopicPrefix: 'nexsentri/feed/'
   });
+
+  // -- HISTORY STATE --
+  const [history, setHistory] = useState<AppStateSnapshot[]>(() => {
+    try {
+      const saved = localStorage.getItem('nexsentri_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Persist history to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('nexsentri_history', JSON.stringify(history));
+  }, [history]);
 
   // -- DATA STATE --
   const [events, setEvents] = useState<FrigateEvent[]>([]);
@@ -118,6 +136,27 @@ const App: React.FC = () => {
     setEvents(prev => [newEvent, ...prev]);
   };
 
+  // -- HISTORY HANDLERS --
+  const handleSaveSnapshot = (note: string) => {
+    const newSnapshot: AppStateSnapshot = {
+      timestamp: Date.now(),
+      note,
+      version: history.length + 1,
+      nodeRedConfig: { ...nodeRedConfig },
+      cameraConfig: { ...cameraConfig },
+      cloudConfig: { ...cloudConfig }
+    };
+    setHistory(prev => [...prev, newSnapshot]);
+  };
+
+  const handleRestoreSnapshot = (snapshot: AppStateSnapshot) => {
+    if (confirm(`Are you sure you want to restore version v${snapshot.version}? Current unsaved changes will be lost.`)) {
+      setNodeRedConfig(snapshot.nodeRedConfig);
+      setCameraConfig(snapshot.cameraConfig);
+      setCloudConfig(snapshot.cloudConfig);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-brand-900 text-slate-200 overflow-hidden font-sans">
       <Sidebar 
@@ -196,6 +235,9 @@ const App: React.FC = () => {
               onSaveCamera={setCameraConfig}
               cloudConfig={cloudConfig}
               onSaveCloud={setCloudConfig}
+              history={history}
+              onSaveSnapshot={handleSaveSnapshot}
+              onRestoreSnapshot={handleRestoreSnapshot}
             />
           )}
         </main>
