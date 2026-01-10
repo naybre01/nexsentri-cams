@@ -8,7 +8,6 @@ services:
     restart: unless-stopped
     ports:
       - "1883:1883"
-      - "9001:9001" # WebSockets for Dashboard
     volumes:
       # FIX: Use .txt extension for host file to prevent directory creation issues
       - ./mosquitto.conf.txt:/mosquitto/config/mosquitto.conf

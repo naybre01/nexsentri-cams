@@ -1,9 +1,11 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+// Fix: Import `process` to provide correct types for `process.cwd()`
+import process from 'process';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, process.cwd(), '');
 
   // In production (Docker), we want to read from the runtime injected global variable window.GEMINI_KEY
   // In development, we want to read from the .env file loaded by Vite
@@ -32,13 +34,6 @@ export default defineConfig(({ mode }) => {
       // These are safe static strings from build-time env
       'process.env.VITE_DEFAULT_WEBHOOK_URL': JSON.stringify(env.VITE_DEFAULT_WEBHOOK_URL),
       'process.env.VITE_DEFAULT_STREAM_URL': JSON.stringify(env.VITE_DEFAULT_STREAM_URL),
-    },
-    // Fix for mqtt library in browser
-    resolve: {
-        alias: {
-            // Force browser build if available
-            // 'mqtt': 'mqtt/dist/mqtt.min.js', 
-        }
     }
   };
 });

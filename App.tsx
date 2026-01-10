@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import * as mqtt from 'mqtt';
 import Sidebar from './components/Sidebar';
 import CameraFeed from './components/CameraFeed';
 import SystemStatsWidget from './components/SystemStatsWidget';
@@ -12,7 +11,6 @@ import { Menu, Zap } from 'lucide-react';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mqttConnected, setMqttConnected] = useState(false);
   
   // -- CONFIG STATE --
   const [nodeRedConfig, setNodeRedConfig] = useState<NodeRedConfig>({
@@ -23,6 +21,9 @@ const App: React.FC = () => {
   });
 
   const [cameraConfig, setCameraConfig] = useState<CameraConfig>(() => {
+    // Smart Default: Use the Nginx proxy path relative to the dashboard.
+    // This routes /api/frigate/... -> http://frigate:5000/api/...
+    // Frigate MJPEG stream is at /api/<camera_name>
     return {
       mode: 'stream',
       streamUrl: `/api/frigate/front_cam`
@@ -43,18 +44,22 @@ const App: React.FC = () => {
     cpuUsage: 0, memoryUsage: 0, temp: 0, storageUsed: 0, storageTotal: 32, timestamp: 0
   });
 
-  // Fetch initial history
+  // Real Data Fetcher for Events
   const fetchFrigateEvents = async () => {
     try {
+      // Fetch from the Nginx proxy (which points to Frigate:5000)
       const response = await fetch('/api/frigate/events?limit=20');
-      if (!response.ok) return;
+      if (!response.ok) return; // Fail silently if Frigate is down
       
       const data = await response.json();
+      
+      // Map Frigate API response to our App format
       const realEvents: FrigateEvent[] = data.map((e: any) => ({
         id: e.id,
         label: e.label,
         camera: e.camera,
         startTime: e.start_time,
+        // Construct thumbnail URL via proxy
         thumbnail: `/api/frigate/events/${e.id}/thumbnail.jpg`, 
         hasClip: e.has_clip,
         score: e.top_score || e.data?.score || 0
@@ -62,88 +67,23 @@ const App: React.FC = () => {
 
       setEvents(realEvents);
     } catch (error) {
-      console.warn("Could not fetch Frigate events", error);
+      console.warn("Could not fetch Frigate events (is the proxy running?)", error);
     }
   };
 
-  // MQTT Connection for Real-time Events
+  // Main Loop (Stats Sim + Real Event Polling)
   useEffect(() => {
-    // Connect to the local Mosquitto broker over WebSockets (port 9001)
-    // Note: The broker must be configured with a websocket listener on 9001
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.hostname;
-    // Handle potential import discrepancies
-    const mqttClient = mqtt.connect ? mqtt.connect : (mqtt as any).default.connect;
-
-    const client = mqttClient(`${protocol}://${host}:9001`, {
-        clientId: `nexsentri_cam_${Math.random().toString(16).slice(2, 8)}`,
-        clean: true,
-        reconnectPeriod: 5000,
-    });
-
-    client.on('connect', () => {
-        console.log('Connected to Local MQTT');
-        setMqttConnected(true);
-        client.subscribe('frigate/events');
-    });
-
-    client.on('message', (topic: string, message: Buffer) => {
-        if (topic === 'frigate/events') {
-            try {
-                const payload = JSON.parse(message.toString());
-                const eventData = payload.after;
-                // 'type' can be: new, update, end
-                // We only care about adding new ones or updating existing ones
-                
-                const newEvent: FrigateEvent = {
-                    id: eventData.id,
-                    label: eventData.label,
-                    camera: eventData.camera,
-                    startTime: eventData.start_time,
-                    thumbnail: `/api/frigate/events/${eventData.id}/thumbnail.jpg`,
-                    hasClip: eventData.has_clip,
-                    score: eventData.top_score || eventData.score || 0
-                };
-
-                setEvents(prevEvents => {
-                    // Check if event exists
-                    const exists = prevEvents.find(e => e.id === newEvent.id);
-                    if (exists) {
-                        // Update existing
-                        return prevEvents.map(e => e.id === newEvent.id ? newEvent : e);
-                    } else {
-                        // Prepend new
-                        return [newEvent, ...prevEvents];
-                    }
-                });
-            } catch (e) {
-                console.error('Failed to parse MQTT message', e);
-            }
-        }
-    });
-
-    client.on('error', (err: any) => {
-        console.warn('MQTT Error', err);
-        setMqttConnected(false);
-    });
-
-    return () => {
-        client.end();
-    };
-  }, []);
-
-  // Sim Stats Loop
-  useEffect(() => {
-    // Initial fetch for history
+    // Initial fetch
     fetchFrigateEvents();
 
     const timer = setInterval(() => {
+      // 1. Sim Stats (Still simulated as we don't have a backend agent for Pi stats yet)
       const now = Date.now();
       const newStat: SystemStats = {
-        cpuUsage: 15 + Math.random() * 20,
-        memoryUsage: 2048 + Math.random() * 512,
-        temp: 45 + Math.random() * 10,
-        storageUsed: 45,
+        cpuUsage: 15 + Math.random() * 20, // 15-35%
+        memoryUsage: 2048 + Math.random() * 512, // ~2.5GB
+        temp: 45 + Math.random() * 10, // 45-55C
+        storageUsed: 45, // static for now
         storageTotal: 32,
         timestamp: now
       };
@@ -154,13 +94,17 @@ const App: React.FC = () => {
         if (next.length > 20) next.shift();
         return next;
       });
-      // Note: We removed polling for events since we now use MQTT
-    }, 5000);
+
+      // 2. Poll Real Events
+      fetchFrigateEvents();
+
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(timer);
   }, []);
 
   const triggerManualEvent = () => {
+    // Allows testing UI without real events
     const now = Date.now();
     const newEvent: FrigateEvent = {
       id: now.toString(),
@@ -202,10 +146,7 @@ const App: React.FC = () => {
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="lg:w-2/3 space-y-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                        Live Monitor
-                        {mqttConnected && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">Real-time MQTT</span>}
-                    </h2>
+                    <h2 className="text-2xl font-bold text-slate-100">Live Monitor</h2>
                     <button 
                       onClick={triggerManualEvent}
                       className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1 rounded-md text-slate-400 transition-colors flex items-center"
