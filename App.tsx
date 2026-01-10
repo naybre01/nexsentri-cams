@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import mqtt from 'mqtt';
+import * as mqtt from 'mqtt';
 import Sidebar from './components/Sidebar';
 import CameraFeed from './components/CameraFeed';
 import SystemStatsWidget from './components/SystemStatsWidget';
@@ -72,7 +72,10 @@ const App: React.FC = () => {
     // Note: The broker must be configured with a websocket listener on 9001
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const host = window.location.hostname;
-    const client = mqtt.connect(`${protocol}://${host}:9001`, {
+    // Handle potential import discrepancies
+    const mqttClient = mqtt.connect ? mqtt.connect : (mqtt as any).default.connect;
+
+    const client = mqttClient(`${protocol}://${host}:9001`, {
         clientId: `nexsentri_cam_${Math.random().toString(16).slice(2, 8)}`,
         clean: true,
         reconnectPeriod: 5000,
@@ -84,7 +87,7 @@ const App: React.FC = () => {
         client.subscribe('frigate/events');
     });
 
-    client.on('message', (topic, message) => {
+    client.on('message', (topic: string, message: Buffer) => {
         if (topic === 'frigate/events') {
             try {
                 const payload = JSON.parse(message.toString());
@@ -119,7 +122,7 @@ const App: React.FC = () => {
         }
     });
 
-    client.on('error', (err) => {
+    client.on('error', (err: any) => {
         console.warn('MQTT Error', err);
         setMqttConnected(false);
     });
