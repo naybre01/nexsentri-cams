@@ -48,7 +48,8 @@ const Settings: React.FC<SettingsProps> = ({
   };
 
   const generateNodeRedFlow = () => {
-    // Generates a Node-RED flow that listens to local MQTT and pushes to Remote NexSentri API
+    // Generates a Node-RED flow that listens to local MQTT and pushes to Remote NexSentri API via MQTT (WSS)
+    // as requested by the user ("via Node-RED and MQTT")
     const flow = [
         {
             "id": "frigate_mqtt_in",
@@ -85,7 +86,7 @@ const Settings: React.FC<SettingsProps> = ({
             "type": "function",
             "z": "nexsentri_tab",
             "name": "Format for NexSentri",
-            "func": `// Map Frigate Event to NexSentri POST /events
+            "func": `// Map Frigate Event to NexSentri Format
 const event = msg.payload.after;
 
 msg.payload = {
@@ -101,15 +102,6 @@ msg.payload = {
     }
 };
 
-// Add Auth Headers if needed (Basic Auth using configured creds)
-// NOTE: For higher security, use a separate Login flow to get a Bearer token.
-// The default NexSentri integration assumes Basic or API Key for simplicity here.
-const auth = Buffer.from('${localCloud.username}:${localCloud.password}').toString('base64');
-msg.headers = {
-    'Content-Type': 'application/json',
-    'x-user-username': '${localCloud.username}'
-};
-
 return msg;`,
             "outputs": 1,
             "noerr": 0,
@@ -118,40 +110,23 @@ return msg;`,
             "libs": [],
             "x": 550,
             "y": 100,
-            "wires": [["nexsentri_post"]]
+            "wires": [["nexsentri_mqtt_out"]]
         },
         {
-            "id": "nexsentri_post",
-            "type": "http request",
+            "id": "nexsentri_mqtt_out",
+            "type": "mqtt out",
             "z": "nexsentri_tab",
-            "name": "POST to Cloud",
-            "method": "POST",
-            "ret": "obj",
-            "paytoqs": "ignore",
-            "url": `${localCloud.baseUrl}/api/events`,
-            "tls": "",
-            "persist": false,
-            "proxy": "",
-            "insecure": true,
-            "authType": "",
-            "x": 750,
-            "y": 100,
-            "wires": [["debug_log"]]
-        },
-        {
-            "id": "debug_log",
-            "type": "debug",
-            "z": "nexsentri_tab",
-            "name": "Log Success",
-            "active": true,
-            "tosidebar": true,
-            "console": false,
-            "tostatus": false,
-            "complete": "payload",
-            "targetType": "msg",
-            "statusVal": "",
-            "statusType": "auto",
-            "x": 950,
+            "name": "Cloud MQTT",
+            "topic": "nexsentri/events",
+            "qos": "1",
+            "retain": "",
+            "respTopic": "",
+            "contentType": "",
+            "userProps": "",
+            "correl": "",
+            "expiry": "",
+            "broker": "remote_mqtt_broker",
+            "x": 800,
             "y": 100,
             "wires": []
         },
@@ -176,6 +151,32 @@ return msg;`,
             "willTopic": "",
             "willQos": "0",
             "willPayload": ""
+        },
+        {
+            "id": "remote_mqtt_broker",
+            "type": "mqtt-broker",
+            "name": "NexSentri Cloud",
+            "broker": "portal.nexsentri.co.za",
+            "port": "443", // WSS Port
+            "clientid": `nexsentri_pi_${Math.floor(Math.random() * 1000)}`,
+            "autoConnect": true,
+            "usetls": true, // Enable TLS for WSS
+            "protocolVersion": "4",
+            "keepalive": "60",
+            "cleansession": true,
+            "birthTopic": "",
+            "birthQos": "0",
+            "birthPayload": "",
+            "closeTopic": "",
+            "closeQos": "0",
+            "closePayload": "",
+            "willTopic": "",
+            "willQos": "0",
+            "willPayload": "",
+            "credentials": {
+                "user": localCloud.username,
+                "password": localCloud.password
+            }
         }
     ];
 
@@ -342,7 +343,7 @@ return msg;`,
                                     <div>
                                         <h4 className="text-sky-300 font-bold text-sm">Node-RED Configuration</h4>
                                         <p className="text-xs text-sky-400/70 mt-1 max-w-sm">
-                                            Generate a pre-configured Flow to bridge local MQTT events to the NexSentri Cloud API.
+                                            Generate a pre-configured Flow to bridge local MQTT events to the NexSentri Cloud API via WSS MQTT.
                                         </p>
                                     </div>
                                     <button

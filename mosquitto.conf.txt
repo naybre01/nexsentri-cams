@@ -2,8 +2,11 @@ persistence true
 persistence_location /mosquitto/data/
 log_dest file /mosquitto/log/mosquitto.log
 
-# Listen on port 1883 for all interfaces
+# Standard MQTT Listener
 listener 1883
+allow_anonymous true
 
-# Allow anonymous access (simplifies setup for local network)
+# WebSocket Listener for Web App (NexSentri Cam)
+listener 9001
+protocol websockets
 allow_anonymous true
