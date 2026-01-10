@@ -5,7 +5,7 @@ import SystemStatsWidget from './components/SystemStatsWidget';
 import EventList from './components/EventList';
 import Settings from './components/Settings';
 import AiAssistant from './components/AiAssistant';
-import { AppView, FrigateEvent, SystemStats, NodeRedConfig, CameraConfig } from './types';
+import { AppView, FrigateEvent, SystemStats, NodeRedConfig, CameraConfig, CloudConfig } from './types';
 import { Menu, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -28,6 +28,13 @@ const App: React.FC = () => {
       mode: 'stream',
       streamUrl: `/api/frigate/front_cam`
     };
+  });
+
+  const [cloudConfig, setCloudConfig] = useState<CloudConfig>({
+    enabled: false,
+    baseUrl: 'https://portal.nexsentri.co.za',
+    username: '',
+    password: ''
   });
 
   // -- DATA STATE --
@@ -187,6 +194,8 @@ const App: React.FC = () => {
               onSaveNodeRed={setNodeRedConfig} 
               cameraConfig={cameraConfig}
               onSaveCamera={setCameraConfig}
+              cloudConfig={cloudConfig}
+              onSaveCloud={setCloudConfig}
             />
           )}
         </main>

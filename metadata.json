@@ -1,6 +1,6 @@
 {
   "name": "NexSentri Cams",
-  "description": "Advanced Dashcam Dashboard for Raspberry Pi 4 with Frigate AI and Node-RED integration.",
+  "description": "Advanced Dashcam Dashboard for Raspberry Pi 4 with Frigate AI, Node-RED, and NexSentri Cloud Link.",
   "requestFramePermissions": [
     "camera",
     "microphone"

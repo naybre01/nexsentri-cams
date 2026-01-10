@@ -36,6 +36,13 @@ export interface CameraConfig {
   streamUrl: string;
 }
 
+export interface CloudConfig {
+  enabled: boolean;
+  baseUrl: string;
+  username: string;
+  password?: string; // Optional for display security
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -50,6 +57,7 @@ export interface AppStateSnapshot {
   version: number;
   nodeRedConfig: NodeRedConfig;
   cameraConfig: CameraConfig;
+  cloudConfig: CloudConfig;
 }
 
 
